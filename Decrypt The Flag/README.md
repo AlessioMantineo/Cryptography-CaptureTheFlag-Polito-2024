@@ -144,17 +144,6 @@ server.close()
 2. **Controlled encryption requests** → We control the plaintext being encrypted.
 3. **Matching ciphertexts reveal correct characters** → Character-by-character brute force.
 
----
 
-## How to Fix This?
-1. **Ensure a unique nonce for every encryption**:
-   - Store the updated nonce correctly instead of discarding it.
 
-2. **Remove user-controlled randomness**:
-   - Do not allow the user to set a seed for random number generation.
-
-3. **Use a secure key derivation function (KDF)**:
-   - Instead of relying on a random seed, use **HKDF** or **PBKDF2** for nonce derivation.
-
----
 
