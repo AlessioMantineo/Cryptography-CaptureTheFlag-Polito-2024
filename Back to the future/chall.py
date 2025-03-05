@@ -12,19 +12,24 @@ app.secret_key = get_random_bytes(16).hex()
 app.config['SESSION_TYPE'] = 'filesystem'
 sess = Session()
 sess.init_app(app)
+
 """
-Importazione delle librerie necessarie per la crittografia (ChaCha20), generazione di numeri casuali, gestione del tempo, Flask per il web server e la gestione delle sessioni.
-app.secret_key viene impostata con un valore casuale per garantire la sicurezza delle sessioni.
-app.config['SESSION_TYPE'] specifica che le sessioni saranno memorizzate su filesystem.
+Importing necessary libraries for cryptography (ChaCha20), random number generation, 
+time management, Flask for the web server, and session management.
+
+app.secret_key is set with a random value to ensure session security.
+app.config['SESSION_TYPE'] specifies that sessions will be stored on the filesystem.
 """
+
 def make_cipher():
     key = get_random_bytes(32)
     nonce = get_random_bytes(12)
     cipher = ChaCha20.new(key=key, nonce=nonce)
     return nonce, key, cipher
+
 """
-Questa funzione genera una chiave casuale e un nonce (numero univoco) per la cifratura ChaCha20 
-e restituisce questi insieme al cifrario ChaCha20 configurato.
+This function generates a random key and a nonce (unique number) for ChaCha20 encryption 
+and returns these along with the configured ChaCha20 cipher.
 """
 
 def sanitize_field(field: str):
@@ -47,8 +52,9 @@ def sanitize_field(field: str):
         .replace("=", "")
 
 """
-sostituisce o rimuove caratteri speciali da una stringa per evitare potenziali attacchi di injection.
+This function replaces or removes special characters from a string to prevent potential injection attacks.
 """
+
 def parse_cookie(cookie: str) -> dict:
     parsed = {}
     for field in cookie.split("&"):
@@ -58,8 +64,10 @@ def parse_cookie(cookie: str) -> dict:
         parsed[key] = value
 
     return parsed
+
 """
-Questa funzione converte una stringa cookie (in formato chiave=valore&chiave=valore&...) in un dizionario, sanitizzando sia le chiavi che i valori.
+This function converts a cookie string (formatted as key=value&key=value&...) into a dictionary, 
+sanitizing both keys and values.
 """
 
 @app.route("/login", methods=["GET"])
@@ -80,20 +88,21 @@ def login():
     cookie = f"username={username}&expires={expire_date}&admin={admin}"
 
     return jsonify({
-        "nonce":bytes_to_long(nonce), 
-        "cookie":bytes_to_long(cipher.encrypt(cookie.encode()))
+        "nonce": bytes_to_long(nonce), 
+        "cookie": bytes_to_long(cipher.encrypt(cookie.encode()))
     })
 
 """
-Riceve due parametri GET: username e admin.
-Genera un nonce, una chiave e un cifrario utilizzando make_cipher().
-Salva la chiave nella sessione.
-Sanitizza il username.
-Se admin non è uguale a 1, viene impostato a 0. Se è 1, viene generata una data di scadenza casuale passata.
-Imposta una data di scadenza per il cookie a 30 giorni nel futuro.
-Crea un cookie cifrato con ChaCha20 contenente username, expires e admin.
-Restituisce il nonce e il cookie cifrato in formato JSON.
+Receives two GET parameters: username and admin.
+Generates a nonce, a key, and a cipher using make_cipher().
+Stores the key in the session.
+Sanitizes the username.
+If admin is not equal to 1, it is set to 0. If it is 1, a random past expiration date is generated.
+Sets an expiration date for the cookie 30 days in the future.
+Creates an encrypted cookie using ChaCha20 containing username, expires, and admin fields.
+Returns the nonce and the encrypted cookie in JSON format.
 """
+
 @app.route("/flag", methods=["GET"])
 def get_flag():
     nonce = int(request.args.get("nonce"))
@@ -114,11 +123,13 @@ def get_flag():
             return "You have expired!"
     except:
         return "Something didn't work :C"
+
 """
-Riceve due parametri GET: nonce e cookie.
-Decifra il cookie utilizzando il nonce e la chiave salvata nella sessione.
-Converte il cookie decifrato in un dizionario.
-Verifica se il campo admin è uguale a 1.
-Verifica se la differenza tra la data di scadenza del cookie e admin_expire_date è compresa tra 290 e 300 giorni.
-Se entrambe le condizioni sono soddisfatte, restituisce la flag. Altrimenti, restituisce un messaggio di errore.
+Receives two GET parameters: nonce and cookie.
+Decrypts the cookie using the nonce and the key stored in the session.
+Converts the decrypted cookie into a dictionary.
+Checks if the admin field is equal to 1.
+Checks if the difference between the cookie expiration date and admin_expire_date 
+is between 290 and 300 days.
+If both conditions are met, returns the flag. Otherwise, returns an error message.
 """
