@@ -1,63 +1,67 @@
-
 import os
+
+# Suppress pwnlib terminal warnings
 os.environ['PWNLIB_NOTERM'] = 'True'
 os.environ['PWNLIB_SILENT'] = 'True'
 
-from pwn import *
-from string import printable
+from pwn import *  # Import the pwntools library for interaction with the server
+from string import ascii_lowercase
 
 try:
     '''
-    46 flag length
-    32 blocks 
-    14 + 2
+    - The flag is 46 characters long.
+    - The encryption is done in 32-byte blocks.
+    - The attacker needs to align the flag properly in the blocks.
     '''
 
-    # flag = "CRYPTO24{59e08-2fc4-4eff"
+    # Start with the known flag prefix
     flag = "CRYPTO24{"
     flag_len = len(flag)
-    start = 64 - flag_len - 1
 
+    # Calculate the number of padding bytes needed to align the flag
+    start = 64 - flag_len - 1  # Adjusting to place the flag in a known position
+
+    # Connect to the challenge server
     server = remote('130.192.5.212', 6541)
 
-    dict = "{}0123456789-" + string.ascii_lowercase
+    # Define possible characters for brute-force guessing
+    vocabulary = "{}0123456789-" + ascii_lowercase
 
     while True:
-        for guess in dict:
-            # print(f"guess: {guess}")
+        for guess in vocabulary:
+            # Send the "enc" command to request encryption
             server.recvuntil(b"> ")
             server.sendline(b"enc")
             server.recvuntil(b"> ")
 
-            # message = b"A"*start + flag.encode() + guess.encode() + b"A"*start
-            fb = b"A" * start
-            sb = flag.encode() + guess.encode()
-            tb = b"A" * start
+            # Construct a message to align the flag properly in the AES-ECB encryption
+            fb = b"A" * start  # Fill first block with "A"
+            sb = flag.encode() + guess.encode()  # Append the known flag + guessed character
+            tb = b"A" * start  # Fill with additional "A"s for alignment
             message = fb + sb + tb
-            message_hex = message.hex()
+            message_hex = message.hex()  # Convert to hexadecimal format
 
-            # print(f"message to send: {message_hex}")
-
+            # Send the crafted message for encryption
             server.sendline(message_hex.encode())
 
+            # Receive and decode the encrypted response
             ciphertext = server.recvline().strip()
-            # print(f"ciphertext len {len(ciphertext)}")
             ciphertext_str = bytes.fromhex(ciphertext.decode())
-            # print(f"ciphertext: {ciphertext_str.hex()}")
-            # print(f"first block: {ciphertext_str[:32].hex()}")
-            # print(f"second block: {ciphertext_str[32:64].hex()}")
-            # print(f"third block: {ciphertext_str[64:96].hex()}")
-            # print(f"fourth block: {ciphertext_str[96:128].hex()}")
+
+            # Check if the second and third blocks are identical (ECB mode pattern leakage)
             if (ciphertext_str[:64] == ciphertext_str[64:128]):
+                # If the blocks match, we found the correct character
                 flag += guess
-                start -= 1
+                start -= 1  # Reduce padding as we reveal more of the flag
                 print(flag)
+
+                # Stop when the flag is completely recovered
                 if guess == "}":
                     break
-
 
 except Exception as e:
     print(f"An error occurred: {e}")
 
 finally:
+    # Close the connection to the server
     server.close()
